@@ -13,11 +13,27 @@ libopenmpt.onRuntimeInitialized = function () {
   var isPlaying = false;
   var isPaused = false;
   var tempoPitchReset = false;
-  var loop = true;
+  var isLooping = false;
+  var currentConfig = new ChiptuneJsConfig(0);
 
+  // create player with config and set default loop behaviour
   function initPlayer() {
     if (player == undefined) {
-      player = new ChiptuneJsPlayer(new ChiptuneJsConfig(-1));
+      player = new ChiptuneJsPlayer(currentConfig);
+      setLoopBehaviour();
+    }
+  }
+
+  function setLoopBehaviour() {
+    if (isLooping) {
+      player.onEnded(function () {
+        // TODO make this better. does not loop cleanly
+        loadURL(songList[songIndex].id)
+      });
+    } else {
+      player.onEnded(function () {
+        pressNextButton();
+      });
     }
   }
 
@@ -73,9 +89,17 @@ libopenmpt.onRuntimeInitialized = function () {
     }
   }
 
+  function preloadIcons() {
+    var img = new Image();
+    var img2 = new Image();
+    img.src = "img/pause.svg";
+    img2.src = "img/loop-active.svg";
+  }
+
   function getFavouritesList() {
     var request = new XMLHttpRequest();
     request.open('GET', 'https://www.christiandewolf.com/mods');
+    //request.open('GET', 'https://www.christiandewolf.com/testmods');  // shorter songs
     request.setRequestHeader('Content-Type', 'application/json');
 
     request.onreadystatechange = function () {
@@ -125,6 +149,7 @@ libopenmpt.onRuntimeInitialized = function () {
       turnButtonToPause();
       enableSliders();
       enableNextButton();
+      enableAndUpdateLoopButton();
     }
   }
 
@@ -203,9 +228,29 @@ libopenmpt.onRuntimeInitialized = function () {
     setSongToSliderValues(true);
   }
 
+  function toggleLoop() {
+    // only works when it's enabled / playing
+    if (!document.getElementById('loop').classList.contains('disabled-button')) {
+      isLooping = !isLooping;
+      setLoopBehaviour();
+      enableAndUpdateLoopButton();
+    }
+  }
+
+  function enableAndUpdateLoopButton() {
+    document.getElementById('loop').classList.remove("disabled-button");
+    if (isLooping) {
+      document.getElementById('loop').classList.add("loop-active");
+    } else {
+      document.getElementById('loop').classList.remove("loop-active");
+    }
+  }
+
   // click handlers
   document.querySelector('#play').addEventListener('click', pressMainButton, false);
   document.querySelector('#next').addEventListener('click', pressNextButton, false);
+  document.querySelector('#loop').addEventListener('click', toggleLoop, false);
+
   document.querySelector('#pitch').addEventListener('input', function (e) {
     player.module_ctl_set('play.pitch_factor', e.target.value.toString());
   }, false);
@@ -232,4 +277,5 @@ libopenmpt.onRuntimeInitialized = function () {
   });
 
   getFavouritesList();
+  preloadIcons();
 };
