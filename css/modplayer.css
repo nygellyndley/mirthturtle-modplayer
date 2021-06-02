@@ -170,25 +170,32 @@ a:active {
 }
 
 .reset-container {
-  width: 100%;
-  text-align: center;
-  margin-top: 5px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 200px;
+  margin: 10px auto 0;
 }
 
 .reset-link {
   font-size: 0.7em;
 }
 
-#modarchive-track-link {
+#modarchive-track-link, #clipboard-button {
   display: none;
 }
 
 .link-img {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
 }
 
 #footer {
   padding-bottom: 20px;
+}
+
+.hidden {
+  position: absolute;
+  left: -1000em;;
 }

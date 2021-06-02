@@ -1,3 +1,7 @@
+var dev = document.location.host == "localhost";
+
+var shareLink = `http${dev ? '://localhost' : 's://christiancodes.github.io'}/mirthturtle-modplayer/`;
+
 var modArchiveDownloadLink = "https://api.modarchive.org/downloads.php?moduleid=";
 var modArchivePageLink = "https://modarchive.org/index.php?request=view_by_moduleid&query=";
 
@@ -10,10 +14,12 @@ libopenmpt.onRuntimeInitialized = function () {
   var player;
   var songList;
   var songIndex = 0;
+  var currentMetadata;
+
   var isPlaying = false;
   var isPaused = false;
-  var tempoPitchReset = false;
   var isLooping = false;
+
   var currentConfig = new ChiptuneJsConfig(0);
 
   // create player with config and set default loop behaviour
@@ -28,7 +34,7 @@ libopenmpt.onRuntimeInitialized = function () {
     if (isLooping) {
       player.onEnded(function () {
         // TODO make this better. does not loop cleanly
-        loadURL(songList[songIndex].id)
+        loadTrackById(songList[songIndex].id)
       });
     } else {
       player.onEnded(function () {
@@ -38,43 +44,50 @@ libopenmpt.onRuntimeInitialized = function () {
   }
 
   function showTrackMetadata(filename) {
-    var metadata = player.metadata();
-    if (metadata['title'] != '') {
-      document.getElementById('title').innerHTML = metadata['title'];
-    } else {
-      document.getElementById('title').innerHTML = filename;
+    currentMetadata = player.metadata();
+    if (!currentMetadata['title']) {
+      currentMetadata['title'] = filename;
     }
-    if (metadata['artist'] != '') {
-      document.getElementById('artist').innerHTML = '<br />' + metadata['artist'];
-    } else {
-      document.getElementById('artist').innerHTML = '';
-    }
-
-    document.title = metadata['title'] + " – Mirth Turtle's MOD Player"
+    document.title = currentMetadata['title'] + " – Mirth Turtle's MOD Player";
+    printInfo( currentMetadata['title'] );
   }
 
-  function setModarchiveLink(id) {
+  function printInfo(info) {
+    document.getElementById('title').innerHTML = info;
+  }
+
+  function setModarchiveLinkAndShow(id) {
     linkElement = document.getElementById('modarchive-track-link');
     linkElement.style = 'display: inline-block';
     linkElement.href = modArchivePageLink + id;
+
+    clipboardElement = document.getElementById('clipboard-button');
+    clipboardElement.style = 'display: inline-block';
   }
 
-  function afterLoad(path, buffer) {
+  function playAfterLoad(options, buffer) {
     player.play(buffer);
-    if (tempoPitchReset) {
-      resetPitchAndTempo();
-    } else {
-      setSongToSliderValues();
+    if (!options.autoplay) {
+      player.togglePause();
     }
-    showTrackMetadata(path);
-    turnButtonToPause();
+    showTrackMetadata(options.filename);
   }
 
-  function loadURL(id) {
+  function loadTrackById(id, autoplay = true) {
     path = modArchiveDownloadLink + id;
+
     initPlayer();
-    player.load(path, afterLoad.bind(this, path));
-    setModarchiveLink(id);
+    player.load(path, playAfterLoad.bind(this, {'autoplay': autoplay, 'filename': path}));
+
+    setModarchiveLinkAndShow(id);
+    setSongToSliderValues();
+    if (autoplay) {
+      turnButtonToPause();
+    }
+  }
+
+  function trackShareLink(id) {
+    return `${shareLink}#${id}`;
   }
 
   function preloadTrack(id) {
@@ -106,17 +119,24 @@ libopenmpt.onRuntimeInitialized = function () {
 
     request.onreadystatechange = function () {
       if (this.readyState === 4) {
+        // put together the playlist
         var favList = [];
         JSON.parse(this.responseText).forEach(function(fav) {
           favList.push({title: fav[0], id: fav[1]});
         });
+
         document.getElementById('title').innerHTML = `press play to start • ${favList.length} tracks loaded`;
 
         songList = shuffleArray(favList);
+        findSongFromUrlHash();
 
         // preload first 2 tracks
-        preloadTrack(songList[0].id);
-        preloadTrack(songList[1].id);
+        preloadTrack(songList[songIndex].id);
+        if (songIndex == songList.length - 1) {
+          preloadTrack(songList[0].id);
+        } else {
+          preloadTrack(songList[songIndex + 1].id);
+        }
       }
     };
     request.send();
@@ -128,6 +148,23 @@ libopenmpt.onRuntimeInitialized = function () {
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr;
+  }
+
+  function findSongFromUrlHash() {
+    var hashId = window.location.hash.slice(1);
+    if (hashId) {
+      var song = songList.find(function(songHash) {
+        return songHash.id == hashId;
+      })
+      if (song) {
+        // set the cursor for the current song
+        songIndex = songList.indexOf(song);
+
+        // light up controls and title, but don't autoplay
+        loadTrackById(song.id, false);
+      }
+    }
+    window.location.hash = "";
   }
 
   // PLAY/PAUSE BUTTONS
@@ -146,7 +183,7 @@ libopenmpt.onRuntimeInitialized = function () {
       if (isPaused) {
         player.togglePause();
       } else {
-        loadURL(songList[songIndex].id);
+        loadTrackById(songList[songIndex].id);
       }
       turnButtonToPause();
       enableSliders();
@@ -159,7 +196,7 @@ libopenmpt.onRuntimeInitialized = function () {
     if (!document.getElementById('next').classList.contains('disabled-button')) {
       isPlaying = true;
       incrementSongIndex();
-      loadURL(songList[songIndex].id);
+      loadTrackById(songList[songIndex].id);
       turnButtonToPause();
       enableSliders();
       preloadNextTrack();
@@ -169,7 +206,7 @@ libopenmpt.onRuntimeInitialized = function () {
   function pressPreviousButton() {
     isPlaying = true;
     decrementSongIndex();
-    loadURL(songList[songIndex].id);
+    loadTrackById(songList[songIndex].id);
     turnButtonToPause();
     enableSliders();
   }
@@ -217,7 +254,7 @@ libopenmpt.onRuntimeInitialized = function () {
   }
 
   function setSongToSliderValues(force = null) {
-    if (force || !tempoPitchReset) {
+    if (force) {
       var tempo = document.getElementById('tempo').value.toString();
       player.module_ctl_set('play.tempo_factor', tempo);
       var pitch = document.getElementById('pitch').value.toString();
@@ -248,18 +285,56 @@ libopenmpt.onRuntimeInitialized = function () {
     }
   }
 
-  // click handlers
+  function clipboardClick() {
+    var theShareLink = trackShareLink(songList[songIndex].id);
+    var sampleText = document.getElementById("sharelink-box");
+    sampleText.value = theShareLink;
+    sampleText.select();
+    sampleText.setSelectionRange(0, 99999)
+    document.execCommand("copy");
+
+    printInfo("Copied!");
+  }
+
+  function hoverModarchiveLink() {
+    printInfo("View on Mod Archive");
+  }
+
+  function hoverClipboardButton() {
+    printInfo("Copy link to clipboard");
+  }
+
+  function showTrackInfo() {
+    printInfo( currentMetadata['title'] );
+  }
+
+  // CLICK HANDLERS //
+
+  // main buttons
   document.querySelector('#play').addEventListener('click', pressMainButton, false);
   document.querySelector('#next').addEventListener('click', pressNextButton, false);
   document.querySelector('#loop').addEventListener('click', toggleLoop, false);
 
+  // sliders
   document.querySelector('#pitch').addEventListener('input', function (e) {
     player.module_ctl_set('play.pitch_factor', e.target.value.toString());
   }, false);
   document.querySelector('#tempo').addEventListener('input', function (e) {
     player.module_ctl_set('play.tempo_factor', e.target.value.toString());
   }, false);
+
+  // links and buttons
   document.querySelector('#reset-link').addEventListener('click', resetPitchAndTempo, false);
+  document.querySelector('#clipboard-button').addEventListener('click', clipboardClick, false);
+
+  // hover
+  document.querySelector('#modarchive-track-link').addEventListener('mouseover', hoverModarchiveLink, false);
+  document.querySelector('#clipboard-button').addEventListener('mouseover', hoverClipboardButton, false);
+
+  document.querySelector('#modarchive-track-link').addEventListener('mouseout', showTrackInfo, false);
+  document.querySelector('#clipboard-button').addEventListener('mouseout', showTrackInfo, false);
+
+  // TODO VOLUME CONTROLS
   // document.querySelector('#volume').addEventListener('input', function (e) {
   //   player.module_ctl_set('play.opl.volume_factor', e.target.value.toString());
   // }, false);
@@ -281,6 +356,7 @@ libopenmpt.onRuntimeInitialized = function () {
     }
   });
 
+  // ON START
   getFavouritesList();
   preloadIcons();
 };
