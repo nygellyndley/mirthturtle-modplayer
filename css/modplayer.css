@@ -28,6 +28,10 @@ span, h1, h2, h3, h4, h5, h6, p {
   cursor: default;
 }
 
+input[type="range"] {
+  cursor: pointer;
+}
+
 a {
   color: black;
 }
@@ -155,14 +159,20 @@ a:active {
   background-repeat: no-repeat;
 }
 
+#super-slider-box {
+  display: flex;
+  max-width: 300px;
+  margin: 0 auto 10px;
+
+}
 #sliders {
   display: inline-flex;
   flex-direction: column;
   margin: 1.9rem 0 0 auto;
-  text-align: left;
   border-radius: 0.35rem;
   border: 1px solid rgba(32, 61, 24, 0.78);
   padding: 1rem;
+  margin-left: 25px;
   background: #f7f7f7;
   line-height: 2;
 }
@@ -172,6 +182,23 @@ a:active {
 }
 #sliders > div > input {
   margin-left: 1rem;
+}
+#volume {
+  writing-mode: bt-lr; /* IE */
+  -webkit-appearance: slider-vertical; /* WebKit */
+  width: 50px;
+  height: 100px;
+  margin-top: 30px;
+}
+@media only screen and (max-width: 30rem) {
+  #volume {
+    display: none;
+  }
+}
+@media only screen and (min-width: 30rem) {
+  #volume {
+    display: block;
+  }
 }
 
 .reset-container {
