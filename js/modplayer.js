@@ -23,6 +23,7 @@ libopenmpt.onRuntimeInitialized = function () {
   var gain = 1;
 
   var currentConfig = new ChiptuneJsConfig(0);
+  var nightMode = false;
 
   // create player with config and set default loop behaviour
   function initPlayer() {
@@ -336,8 +337,36 @@ libopenmpt.onRuntimeInitialized = function () {
     printInfo("browse playlist");
   }
 
+  function hoverDayNight() {
+    if (nightMode) {
+      printInfo("day mode");
+    } else {
+      printInfo("night mode");
+    }
+  }
+
   function showTrackInfo() {
     printInfo( currentMetadata['title'] );
+  }
+
+  function toggleDayAndNight() {
+    var toggleLink = document.getElementById('day-night-link');
+    var stylesheet = document.getElementById('nightmode-css');
+    var fileIcon = document.getElementById('track-file-image');
+    var shareIcon = document.getElementById('track-share-image');
+
+    nightMode = !nightMode;
+    if (nightMode) {
+      toggleLink.text = "☀"
+      stylesheet.disabled = '';
+      fileIcon.src = "img/file-white.png";
+      shareIcon.src = "img/link-white.png";
+    } else {
+      toggleLink.text = "☾"
+      stylesheet.disabled = 'disabled';
+      fileIcon.src = "img/file.png";
+      shareIcon.src = "img/link.png";
+    }
   }
 
   // CLICK HANDLERS //
@@ -350,18 +379,22 @@ libopenmpt.onRuntimeInitialized = function () {
   // sliders
   document.querySelector('#pitch').addEventListener('input', function (e) {
     setSongToSliderValues();
+    printInfo(`pitch: ${Math.round(document.getElementById('pitch').value*100).toString()}%`);
   }, false);
   document.querySelector('#tempo').addEventListener('input', function (e) {
     setSongToSliderValues();
+    printInfo(`tempo: ${Math.round(document.getElementById('tempo').value*100).toString()}%`);
   }, false);
   document.querySelector('#volume').addEventListener('input', function (e) {
     setSongToSliderValues();
+    printInfo(`volume: ${Math.round(document.getElementById('volume').value*100).toString()}%`);
   }, false);
 
 
   // links and buttons
   document.querySelector('#reset-link').addEventListener('click', resetPitchAndTempo, false);
   document.querySelector('#clipboard-button').addEventListener('click', clipboardClick, false);
+  document.querySelector('#day-night-link').addEventListener('click', toggleDayAndNight, false);
 
   // hover
   document.querySelector('#modarchive-track-link').addEventListener('mouseover', hoverModarchiveLink, false);
@@ -382,6 +415,12 @@ libopenmpt.onRuntimeInitialized = function () {
   document.querySelector('#playlist-link').addEventListener('mouseover', hoverPlaylist, false);
   document.querySelector('#playlist-link').addEventListener('mouseout', showTrackInfo, false);
 
+  document.querySelector('#day-night-link').addEventListener('mouseover', hoverDayNight, false);
+  document.querySelector('#day-night-link').addEventListener('mouseout', showTrackInfo, false);
+
+  document.querySelector('#volume').addEventListener('mouseout', showTrackInfo, false);
+  document.querySelector('#pitch').addEventListener('mouseout', showTrackInfo, false);
+  document.querySelector('#tempo').addEventListener('mouseout', showTrackInfo, false);
   // key handlers for pause/next
   window.addEventListener("keydown", function(e) {
     if (e.key === " " ) {
